@@ -1,0 +1,158 @@
+Project: pong 
+by Christopher Fuentes
+cfuentes@g.harvard.edu
+HUID 60857326
+
+Purpose: A simplified version of Pong for the command line.
+
+Input:  The game requires no command line args and will in fact
+        not run if any are provided. It should be run as ./pong. 
+
+Output: The game should run entirely in the terminal and exit  
+        either when the player loses or presses shift-Q. There
+        is no output. 
+
+
+Outline:
+        I wanted to model this project using a typical MVC 
+        approach. However, a few modifications are necessary
+        since C doesn't have all of the niceties of full OO 
+        languages. 
+
+        The pong.c file is the main ViewController, responsible for
+        interfacing between the user/terminal window (View) and
+        the game objects (Models). The main divergence from a 
+        true MVC implementation is that the objects are required 
+        to render themselves using ncurses - normally, objects would
+        just provide enough info about themselves such that the 
+        VC could draw them. However, providing an interface for
+        reading all of the properties, setting the properties,
+        and handling interactions between the various objects
+        seemed to present too messy of a structure such that
+        having objects render themselves made for a cleaner 
+        implementation. 
+
+        SIGINT is ignored, so the only way to exit is shift-Q. 
+
+
+        main loop
+                The main function sets up the signals (via set_up, 
+                setup_signals), serves the bal, and then starts the
+                game loop. On each iteration of the game loop, 
+                we first check that there are balls left (i.e., 
+                the player hasn't lost yet) and see if there is any
+                user input ('Q', 'k', or 'm'). If the user presses
+                'Q' we exit. Else, handle 'k' and 'm' via paddle_up
+                or paddle_down as appropriate. 
+
+                The loop then proceeds to check if any actions are 
+                present in the action queue and, if so, calls
+                update_ball() to decrease the ball_queue size. 
+                Only one call to update_ball per loop is made
+                so as not to block user input or cause associated
+                lag. 
+
+        the timer      
+                The timer fires at a rate of TICKS_PER_SEC (defined
+                in common.h), each time simply adding on to the 
+                queue to indicate that another update action is required. The timer is initialized form the 
+                main function and canceled when the player loses
+                or quits. 
+
+                The alarmlib used for this timer is taken exactly
+                from class and not modified in any way (thus, none
+                of it is my own creation).
+
+                The header displays the time by simply parsing out
+                minutes and seconds from an enduring elapsed_time
+                count and displaying them on the top right. It
+                checks that the new time to draw is different
+                from the old time before actually drawing it, else
+                it would needlesly re-render TICKS_PER_SEC - 1 times
+                every second. 
+
+        checking movement
+                As in typical run-loop games, the updating must be 
+                done in a predictive fashion. So we'll check the 
+                next potential position of the ball rather than
+                checking collisions on the current position. 
+                Provided the ball starts in a valid position (which
+                it does, as per spec) we can guarantee that it won't 
+                get into an invalid position if we check all 
+                collisions in advance of their actual occurence. 
+
+                For the paddle, this is just a matter of 
+                checking whether or not the movement would
+                cause an intersection with the ball. If so, the 
+                move is not allowed (in some versions of pong, the
+                result would be that the ball is counted as having
+                been paddled, though I don't see why we should favor
+                the user over reality in this case). 
+
+                For the ball, we can easily get it's next position
+                via next_pos and check for collisions there. Since
+                there is nothing that will prevent the ball from 
+                reaching its next position, we can calculate the result
+                from that action and apply it to the current action 
+                preemtively. 
+
+                E.g., if the ball is about to collide with the wall,
+                we bounce instead. 
+
+                If the ball is about to exit the court (i.e. it is
+                in the same column as the paddle), then nothing can
+                stop it from exiting the court, as per the definition
+                of paddle movement above. 
+
+                If the ball is about to enter the column where the 
+                paddle is, since the paddle doesn't have a trajectory
+                it is sufficient to judge collision by the paddle's current state. Since the ball and paddle can't move
+                at the same time, either the ball will move first
+                and the paddle will not be able to save it, or the 
+                paddle will have already moved (in which case it is
+                a paddle bounce). 
+
+
+Race Conditions
+        The principle I try to keep in mind for race conditions
+        is that they can not occur if you do not have a true async
+        environment.  
+
+        One solution is to enqueue paddle movement actions as well
+        as ball movement actions. Provided that the loop that
+        dequeues them is sufficiently fast, it will dequeue and
+        execute, at most, one action at a time. Then there is no 
+        chance of one mvaddchar() call interrupting another call.
+
+        An even cleaner approach is just to handle the calls which
+        result in drawing synchronously in the same loop as the
+        calls which dequeue the ball_update actions. That way, 
+        there is a guaranteed synchronization between the different
+        actions. The principle is the same: the async process can 
+        not be the one to call the interruptable process.  This
+        is more or less the approach I take for the project.
+
+        At a higher level, actions that can be interrupted and are
+        harmful if interrupted should be executed synchronously,
+        under locks, or under something akin to a mutex, allowing 
+        only a single thread to access the operation until the 
+        operation is complete from start to finish. With UI ops, 
+        however, this isn't generally so I'd defer to my first 
+        approach of forcing  synchonicity. 
+
+Other concerns:
+        Screen resizing is not supported in this version. The 
+        game will behave quite strangely if you resize the window. 
+        If I were to implement a responsive screen, I'd start by 
+        adding a new method to handle SIGWINCH which would clear
+        the current court and header, re-render the court/header,
+        and scale the paddle up to the appropriate new size. 
+
+        The ball could remain in the same position or be moved
+        appropriately using a percentage value. The ball itself
+        might also be scaled up or down by using multiple
+        characters - at that point, it's a matter of game design
+        more than just keeping it functional. 
+
+
+

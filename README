@@ -1,0 +1,56 @@
+Christopher Fuentes
+cfuentes@g.harvard.edu
+HUID 60857326
+Project 4: pong
+
+
+Submission Summary:
+
+pong.c
+	Main programm logic, acts as the view controller interfacing
+	between the user/terminal and the underlying models. Handles
+	game logic. Sets up the court and controlls the header, since
+	both require very minimal drawing and maintainence code. 
+
+common.h
+	A constants file which contains all shared #define statements 
+	as well as enums and structs common to multiple files. 
+
+ball.h/c
+	A module representing a singleton ball object, with a 
+	basic interface for getting the ball's next projected
+	location and making the ball re-render. It is initialized
+	with the screen dimensions so that it knows from where to 
+	serve itself.
+
+paddle.h/c 
+	A module representing a singleton paddle object. Exposes
+	functions for checking collisions with a point (ball's position)
+	as well as interface to request the paddle to move up or down. 
+	It is inititialized with the screen dimensions so it knows
+	how large it should be and in which column it should be. The 
+	paddle is roughly 1/3rd the height of the court, which is 
+	the height of the terminal - 6 (3 rows of padding on top and 
+	bottom).
+
+alarmlib.h/c
+	Made by Bruce Molay. I take no credit for this. Handles the
+	setting of the SIGALRM to create the timer used for tracking 
+	updates to the ball/clock. 
+
+Usage: ./pong
+
+No command line args are support. Program will inform you of such if 
+you attempt to use any. 
+
+Gameplay:
+
+	The ball starts in the middle of the court, initialized with
+	any velocity except (0, K) such that it can not be stuck bouncing
+	straight up and down. When the ball goes out of bounds, it 
+	immediately restarts from the center of the court and a random
+	velocity. 
+
+	When the user has missed 3 balls, the game quits and the terminal
+	returns to normal stty settings.
+
